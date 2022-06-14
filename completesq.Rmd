@@ -1,0 +1,133 @@
+---
+title: 'Complete the square in Sympy'
+author: 'fnaufel'
+email: 'https://fnaufel.github.io/'
+date: '   (v. `r format(Sys.Date(), "%d/%m/%Y")`)'
+lang: 'en'
+
+output: 
+  # To install these output formats, run
+  #   install.packages("devtools")
+  #   devtools::install_github("fnaufel/fnaufelRmd")
+  fnaufelRmd::html_report:
+    []
+---
+
+```{r setup, include=FALSE}
+# The next command configures MANY things and loads quite a few packages.
+# 
+# If you want to see what's being done, execute 
+# 
+#   cat(
+#     system.file(
+#       "rmarkdown/resources/R/_common_report.R", 
+#       package = "fnaufelRmd"
+#     )
+#   )
+# 
+# to find out the location of the file. Then open the file.
+# 
+# If you want to change the configuration, copy the file, edit it, and
+# source it instead of the package file. 
+# 
+# Or simply write your commands here in this code chunk.
+
+source(
+  system.file(
+    "rmarkdown/resources/R/_common_report.R",
+    package = "fnaufelRmd"
+  )
+)
+
+library(reticulate)
+library(sympyglue)
+
+sympy = import('sympy')
+py_run_string('from sympy import *')
+py_run_string('init_printing(use_latex=True)')
+```
+
+
+# Experiments
+
+```{python}
+x = symbols('x')
+```
+
+```{python}
+e = 4*x**2 + 3*x
+
+coefficients = e.as_poly().all_coeffs()
+coefficients
+```
+
+Test whether
+
+* There are exactly 3 coefficients
+
+
+# The function
+
+```{python}
+def complsq(e, var):
+  
+  coefficients = e.as_poly(var).all_coeffs()
+  
+  if len(coefficients) != 3:
+    sys.exit('Expression must be of degree 2 in ' + str(var))
+    
+  a, b, c = coefficients
+  
+  second = Rational(b, 2*a)
+  third = Rational(4*a*c - b**2, 4*a)
+  
+  return a * (var + second)**2 + third
+```
+
+```{python error=TRUE}
+complsq(x**4 + 2*x, x)
+```
+
+```{r}
+eg <- function(e) {
+  
+  cmd <- paste0('e = ', rlang::expr_text(rlang::enexpr(e)))
+  cmd <- gsub('^', '**', cmd, fixed = TRUE)
+  py_run_string(cmd)
+  
+  m('$$\\displaystyle {{e}} \\quad=\\quad {{complsq(e, x)}}$$')
+}
+```
+
+```{r}
+eg(x**2 + 2*x)
+```
+
+```{r}
+eg(x**2 + 2*x + 1)
+```
+
+```{r}
+eg(x**2 - 2*x)
+```
+
+```{r}
+eg(4*x**2 + 2*x)
+```
+
+```{r}
+eg(4*x**2 - 2*x)
+```
+
+```{r}
+eg(-4*x**2 + 2*x)
+```
+
+```{r}
+eg(-4*x**2 - 2*x)
+```
+
+```{r}
+eg(4*x**2 + 2*x + 10)
+```
+
