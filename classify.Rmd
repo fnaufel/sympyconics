@@ -1,0 +1,145 @@
+---
+title: 'Classify a conic'
+author: 'fnaufel'
+email: 'https://fnaufel.github.io/'
+date: '   (v. `r format(Sys.Date(), "%d/%m/%Y")`)'
+lang: 'en'
+
+output: 
+  # To install these output formats, run
+  #   install.packages("devtools")
+  #   devtools::install_github("fnaufel/fnaufelRmd")
+  fnaufelRmd::html_report:
+    []
+---
+
+```{r setup, include=FALSE}
+# The next command configures MANY things and loads quite a few packages.
+# 
+# If you want to see what's being done, execute 
+# 
+#   cat(
+#     system.file(
+#       "rmarkdown/resources/R/_common_report.R", 
+#       package = "fnaufelRmd"
+#     )
+#   )
+# 
+# to find out the location of the file. Then open the file.
+# 
+# If you want to change the configuration, copy the file, edit it, and
+# source it instead of the package file. 
+# 
+# Or simply write your commands here in this code chunk.
+
+source(
+  system.file(
+    "rmarkdown/resources/R/_common_report.R",
+    package = "fnaufelRmd"
+  )
+)
+
+library(reticulate)
+library(sympyglue)
+
+sympy = import('sympy')
+py_run_string('from sympy import *')
+py_run_string('init_printing(use_latex=True)')
+```
+
+
+# The function
+
+* Get an equation in general form --- no $xy$ term.
+
+* Return a dict containing
+
+  * eq_general
+  
+  * conic_type: 
+  
+    * 'concurrent lines'
+    
+    * 'parallel lines'
+    
+    * 'one line'
+    
+    * 'point'
+    
+    * 'empty set'
+    
+    * 'ellipse'
+    
+    * 'parabola'
+    
+    * 'hyperbole'
+    
+  * eq_canonical
+
+```{python}
+def classify(eq):
+  
+  error_msg = '''
+  Equation must be of the form Ax^2 + Cy^2 + Dx + Ey + F
+  The input was ''' + latex(eq)
+    
+  p = eq.as_poly(x, y)
+  
+  if p.degree() != 2:
+    raise ValueError(error_msg)
+  
+  d = eq.as_poly(x, y).as_dict()
+  
+  coefficients = [d.get((x, y), 0) for x in range(3) for y in range(3)]
+  
+  F, E, C, D, B, z1, A, z2, z3 = coefficients
+  
+  if z1 != 0 or z2 != 0 or z3 != 0 or B != 0:
+    raise ValueError(error_msg)
+    
+  retval = { \
+    'eq': eq, \
+    'A': A, \
+    'B': B, \
+    'C': C, \
+    'D': D, \
+    'E': E, \
+    'F': F \
+  }
+  
+  return retval
+```
+
+
+# Tests
+
+```{python}
+x, y = symbols('x y')
+```
+
+```{python}
+eq = x**2 + 2*x + y**2 + 4*y - 4
+classify(eq)
+```
+
+```{python}
+eq = x + y
+classify(eq)
+```
+
+```{python}
+eq = x**2 + x + 1
+classify(eq)
+```
+
+```{python}
+eq = x * y
+classify(eq)
+```
+
+```{python}
+eq = x**2 + x*y + y**2 + x + y + 1
+classify(eq)
+```
+
+
