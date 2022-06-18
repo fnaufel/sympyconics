@@ -1,5 +1,5 @@
 ---
-title: 'Classify a conic'
+title: 'Find canonical equation'
 author: 'fnaufel'
 email: 'https://fnaufel.github.io/'
 date: '   (v. `r format(Sys.Date(), "%d/%m/%Y")`)'
@@ -46,36 +46,11 @@ sympy = import('sympy')
 py_run_string('from sympy import *')
 py_run_string('init_printing(use_latex=True)')
 py_run_string('from pprint import pp')
+py_run_string('x, y = symbols(\'x y\')')
 ```
 
 
-# The function
-
-* Get an equation in general form --- no $xy$ term.
-
-* Return a dict containing
-
-  * eq_general
-  
-  * conic_type: 
-  
-    * 'concurrent lines'
-    
-    * 'parallel lines'
-    
-    * 'one line'
-    
-    * 'point'
-    
-    * 'empty set'
-    
-    * 'ellipse'
-    
-    * 'parabola'
-    
-    * 'hyperbola'
-    
-  * eq_canonical
+# Classify using match
 
 ```{python}
 def classify(eq):
@@ -84,22 +59,25 @@ def classify(eq):
   Equation must be of the form Ax^2 + Cy^2 + Dx + Ey + F
   The input was ''' + latex(eq)
     
-  p = eq.as_poly(x, y, domain = 'QQ')
+  a, b, c, d, e, f = [ \
+    Wild(w, exclude=[x, y]) for w in 'abcdef' \
+  ]
   
-  if p.degree(x) != 2 and p.degree(y) != 2:
+  m = eq.match(a*x**2 + b*x*y + c*y**2 + d*x + e*y + f)
+
+  if m is None:
     raise ValueError(error_msg)
   
-  d = p.as_dict()
+  A = m[Wild('a', exclude=[x,y])]
+  B = m[Wild('b', exclude=[x,y])]
+  C = m[Wild('c', exclude=[x,y])]
+  D = m[Wild('d', exclude=[x,y])]
+  E = m[Wild('e', exclude=[x,y])]
+  F = m[Wild('f', exclude=[x,y])]
   
-  exponents = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0)]
-  
-  coefficients = [d.get((x, y), 0) for x, y in exponents]
-  
-  F, E, C, D, B, A = coefficients
-  
-  if B != 0:
+  if B != 0 or (A == 0 and C == 0):
     raise ValueError(error_msg)
-    
+  
   retval = { \
     'eq': eq, \
     'A': A, \
@@ -109,7 +87,7 @@ def classify(eq):
     'E': E, \
     'F': F \
   }
-  
+
   if A * C > 0:
     lmbda = D**2 / (4 * A) + E**2 / (4 * C) - F
     if A * lmbda > 0:
@@ -165,11 +143,7 @@ def classify(eq):
 ```
 
 
-# Tests
-
-```{python}
-x, y = symbols('x y')
-```
+## Tests for classify
 
 ```{python}
 eq = x**2 + 2*x + y**2 + 4*y - 4
@@ -287,6 +261,110 @@ m(
   '{{ [ e[\'eq\'] for e in eq_list ] }} &',
   '{{ [ e[\'conic_type\'] for e in eq_list ] }} \\\\',
   before = '$$\n\\begin{array}{rl}',
+  after = '\\end{array}\n$$'
+)
+```
+
+
+# Complete the square using match (TODO)
+
+```{python}
+def complsq(e, var):
+  
+  coefficients = e.as_poly(var).all_coeffs()
+  
+  if len(coefficients) != 3:
+    raise ValueError('Expression must be of degree 2 in ' + str(var))
+    
+  a, b, c = coefficients
+  
+  second = Rational(b, 2*a)
+  third = Rational(4*a*c - b**2, 4*a)
+  
+  return a * (var + second)**2 + third
+```
+
+
+# Find canonical equation (TODO)
+
+```{python}
+def find_canonical_eq(conic):
+  
+  A = conic['A']
+  C = conic['C']
+  D = conic['D']
+  E = conic['E']
+  F = conic['F']
+  
+  retval = None
+  
+  if conic['conic_type'] == 'parabola':
+    retval = do_parabola(A, C, D, E, F)
+    
+  return retval
+```
+
+
+## Parabola (TODO)
+
+* I have an equation
+
+  $$
+  Ax^2 + Dx + Ey + F = 0
+  $$
+
+  or
+  
+  $$
+  Cy^2 + Dx + Ey + F = 0
+  $$
+  
+```{python}
+def do_parabola(A, C, D, E, F):
+  
+  eqx = A*x**2 + D*x
+  eqy = C*y**2 + E*y
+  a = Wild('a', exclude=[x, y])
+  b = Wild('b', exclude=[x, y])
+  c = Wild('c', exclude=[x, y])
+  
+  if C == 0:
+    eqx = complsq(eqx, x)
+    m = eqx.match(a * (x + b)**2 + c)
+    neweq = Eq(y + (F + c)/E, -a * (x + b)**2 / E).xreplace(m)
+  
+  return neweq
+```
+
+
+### Tests for parabola
+
+```{python}
+parabolas = [ \
+  # 5*y**2-3*x+3*y-2, \
+  2*x**2+2*x-3*y-1, \
+  # 4*y**2-4*x-5*y+5, \
+  4*x**2-3*x-5*y-3, \
+  # 2*y**2-4*x+5, \
+  4*x**2+2*x-4*y+1, \
+  # -y**2+4*x+4*y-4, \
+  x**2-2*x-4*y+3, \
+  2*x**2-2*x-4*y+2, \
+  # -2*y**2+2*x-3*y-4, \
+  x**2-x-4*y-2, \
+  # 3*y**2-2*x-2*y, \
+  # -y**2+x+5*y+1, \
+]
+```
+
+```{python}
+canonics = [find_canonical_eq(classify(eq)) for eq in parabolas]
+```
+
+```{r}
+m(
+  '{{ [ e for e in canonics ] }} \\\\',
+  before = '$$\n\\displaystyle \\begin{array}{l}',
   after = '\\end{array}\n$$'
 )
 ```
