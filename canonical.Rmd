@@ -56,30 +56,32 @@ py_run_string('x, y = symbols(\'x y\')')
 def classify(eq):
   
   error_msg = '''
-  Equation must be of the form Ax^2 + Cy^2 + Dx + Ey + F
+  Equation must be of the form Ax^2 + Cy^2 + Dx + Ey + F.
   The input was ''' + latex(eq)
-    
+  
+  # Used to match the coefficients of the equation
   a, b, c, d, e, f = [ \
     Wild(w, exclude=[x, y]) for w in 'abcdef' \
   ]
   
+  # Match
   m = eq.match(a*x**2 + b*x*y + c*y**2 + d*x + e*y + f)
-
+  
+  # No match: bad equation
   if m is None:
     raise ValueError(error_msg)
   
-  A = m[Wild('a', exclude=[x,y])]
-  B = m[Wild('b', exclude=[x,y])]
-  C = m[Wild('c', exclude=[x,y])]
-  D = m[Wild('d', exclude=[x,y])]
-  E = m[Wild('e', exclude=[x,y])]
-  F = m[Wild('f', exclude=[x,y])]
+  # Get coefficients
+  A, B, C, D, E, F = [w.xreplace(m) for w in [a, b, c, d, e, f]]
   
+  # Must be degree 2 in at least one of the vars
+  # No rotated conics for now
   if B != 0 or (A == 0 and C == 0):
     raise ValueError(error_msg)
   
+  # Collect everything in a dict
   retval = { \
-    'eq': eq, \
+    'eq_general': eq, \
     'A': A, \
     'B': B, \
     'C': C, \
@@ -87,7 +89,8 @@ def classify(eq):
     'E': E, \
     'F': F \
   }
-
+  
+  # Find out type of conic
   if A * C > 0:
     lmbda = D**2 / (4 * A) + E**2 / (4 * C) - F
     if A * lmbda > 0:
@@ -137,6 +140,7 @@ def classify(eq):
       else:
         conic_type = 'empty set'
   
+  # Save type in dict
   retval['conic_type'] = conic_type
   
   return retval
@@ -258,7 +262,7 @@ eq_list = [classify(eq) for eq in eqs]
 
 ```{r}
 m(
-  '{{ [ e[\'eq\'] for e in eq_list ] }} &',
+  '{{ [ e[\'eq_general\'] for e in eq_list ] }} &',
   '{{ [ e[\'conic_type\'] for e in eq_list ] }} \\\\',
   before = '$$\n\\begin{array}{rl}',
   after = '\\end{array}\n$$'
@@ -266,22 +270,94 @@ m(
 ```
 
 
-# Complete the square using match (TODO)
+# Complete the square using match
 
 ```{python}
-def complsq(e, var):
+def complsq(expr, var):
   
-  coefficients = e.as_poly(var).all_coeffs()
+  # e is of the form ax^2 + bx + c, and var == x
   
-  if len(coefficients) != 3:
-    raise ValueError('Expression must be of degree 2 in ' + str(var))
-    
-  a, b, c = coefficients
+  error_msg = '''
+  Expression must be of the form ax^2 + bx + c.
+  The input was ''' + latex(expr)
   
-  second = Rational(b, 2*a)
-  third = Rational(4*a*c - b**2, 4*a)
+  # var may be any symbol, but let's call it x here
+  x = var
   
-  return a * (var + second)**2 + third
+  # Used to match the coefficients
+  a, b, c = [ \
+    Wild(w, exclude=[x, y]) for w in 'abc' \
+  ]
+  
+  # Match
+  m = expr.match(a*x**2 + b*x + c)
+  
+  # No match: bad expression
+  if m is None:
+    raise ValueError(error_msg)
+  
+  # Get coefficients
+  A, B, C = [w.xreplace(m) for w in [a, b, c]]
+  
+  # Expression must be of degree 2
+  if A == 0:
+    raise ValueError(error_msg)
+  
+  # Will return A (x + B/2A)^2 + (4AC - B^2)/4A
+  second = Rational(B, 2*A)
+  third = Rational(4*A*C - B**2, 4*A)
+  
+  return A * (var + second)**2 + third
+```
+
+
+## Test complete square
+
+```{python error=TRUE}
+complsq(x**4 + 2*x, x)
+```
+
+```{r}
+eg <- function(e) {
+  
+  cmd <- paste0('e = ', rlang::expr_text(rlang::enexpr(e)))
+  cmd <- gsub('^', '**', cmd, fixed = TRUE)
+  py_run_string(cmd)
+  
+  m('$$\\displaystyle {{e}} \\quad=\\quad {{complsq(e, x)}}$$')
+}
+```
+
+```{r}
+eg(x**2 + 2*x)
+```
+
+```{r}
+eg(x**2 + 2*x + 1)
+```
+
+```{r}
+eg(x**2 - 2*x)
+```
+
+```{r}
+eg(4*x**2 + 2*x)
+```
+
+```{r}
+eg(4*x**2 - 2*x)
+```
+
+```{r}
+eg(-4*x**2 + 2*x)
+```
+
+```{r}
+eg(-4*x**2 - 2*x)
+```
+
+```{r}
+eg(4*x**2 + 2*x + 10)
 ```
 
 
