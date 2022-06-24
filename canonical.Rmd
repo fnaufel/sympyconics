@@ -361,27 +361,24 @@ eg(4*x**2 + 2*x + 10)
 ```
 
 
-# Find canonical equation (TODO)
+# Find canonical equation
 
 ```{python}
 def find_canonical_eq(conic):
   
-  A = conic['A']
-  C = conic['C']
-  D = conic['D']
-  E = conic['E']
-  F = conic['F']
+  A, C, D, E, F = [conic[c] for c in 'ACDEF']
+  conic_type = conic['conic_type']
   
   retval = None
   
-  if conic['conic_type'] == 'parabola':
+  if conic_type == 'parabola':
     retval = do_parabola(A, C, D, E, F)
     
   return retval
 ```
 
 
-## Parabola (TODO)
+## Parabola
 
 * I have an equation
 
@@ -398,16 +395,32 @@ def find_canonical_eq(conic):
 ```{python}
 def do_parabola(A, C, D, E, F):
   
+  # x part
   eqx = A*x**2 + D*x
-  eqy = C*y**2 + E*y
-  a = Wild('a', exclude=[x, y])
-  b = Wild('b', exclude=[x, y])
-  c = Wild('c', exclude=[x, y])
   
-  if C == 0:
+  # y part
+  eqy = C*y**2 + E*y
+  
+  # Used to build the new equation
+  a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+  
+  if C == 0: # This is a parabola with x^2, and E != 0
+    
+    # Complete the square only for the x part
     eqx = complsq(eqx, x)
+    # Get constants in the completed square
     m = eqx.match(a * (x + b)**2 + c)
+    # Build new equation
     neweq = Eq(y + (F + c)/E, -a * (x + b)**2 / E).xreplace(m)
+    
+  else: # This is a parabola with y^2, and D != 0
+    
+    # Complete the square only for the y part
+    eqy = complsq(eqy, y)
+    # Get constants in the completed square
+    m = eqy.match(a * (y + b)**2 + c)
+    # Build new equation
+    neweq = Eq(x + (F + c)/D, -a * (y + b)**2 / D).xreplace(m)
   
   return neweq
 ```
@@ -417,19 +430,21 @@ def do_parabola(A, C, D, E, F):
 
 ```{python}
 parabolas = [ \
-  # 5*y**2-3*x+3*y-2, \
+  5*y**2-3*x+3*y-2, \
   2*x**2+2*x-3*y-1, \
-  # 4*y**2-4*x-5*y+5, \
+  4*y**2-4*x-5*y+5, \
   4*x**2-3*x-5*y-3, \
-  # 2*y**2-4*x+5, \
+  2*y**2-4*x+5, \
   4*x**2+2*x-4*y+1, \
-  # -y**2+4*x+4*y-4, \
+  -y**2+4*x+4*y-4, \
   x**2-2*x-4*y+3, \
   2*x**2-2*x-4*y+2, \
-  # -2*y**2+2*x-3*y-4, \
+  -2*y**2+2*x-3*y-4, \
   x**2-x-4*y-2, \
-  # 3*y**2-2*x-2*y, \
-  # -y**2+x+5*y+1, \
+  3*y**2-2*x-2*y, \
+  -y**2+x+5*y+1, \
+  y + x**2, \
+  x + y**2 \
 ]
 ```
 
@@ -445,4 +460,39 @@ m(
 )
 ```
 
+General:
 
+```{r}
+m(
+  '{{r: [ e for e in parabolas ] }} = 0',
+  sep_middle = ', ',
+  before = '{',
+  after = '}',
+  sep_blocks = ' ',
+  use_cat = TRUE  
+) %>% 
+  cat()
+```
+
+Canonical:
+
+```{r}
+m(
+  '{{r: [ e.lhs for e in canonics ] }} = {{r: [ e.rhs for e in canonics ] }}',
+  sep_middle = ', ',
+  before = '{',
+  after = '}',
+  sep_blocks = ' ',
+  use_cat = TRUE  
+) %>% 
+  cat()
+```
+
+
+
+```{python}
+parab = y + x**2
+parab
+
+classify(parab)
+```
