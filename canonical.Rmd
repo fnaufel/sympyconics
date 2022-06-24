@@ -114,7 +114,10 @@ def classify(eq):
     if A * E < 0:
       conic_type = 'parabola'
     elif A * E > 0:
-      conic_type = 'empty set'
+      # Here the book had 'empty set', but the right type is 'parabola',
+      # as A and E are nonzero, and the only case where this would be the 
+      # empty set is if E were zero.
+      conic_type = 'parabola'
     else:
       mu1 = D**2 / (4 * A) - F
       if A * mu1 >= 0:
@@ -129,7 +132,10 @@ def classify(eq):
     if C * D < 0:
       conic_type = 'parabola'
     elif C * D > 0:
-      conic_type = 'empty set'
+      # Here the book had 'empty set', but the right type is 'parabola',
+      # as C and D are nonzero, and the only case where this would be the 
+      # empty set is if D were zero.
+      conic_type = 'parabola'
     else:
       mu2 = D**2 / (4 * C) - F
       if C * mu2 >= 0:

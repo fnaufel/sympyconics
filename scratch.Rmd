@@ -1,0 +1,16 @@
+
+
+
+```{python}
+A, D, E, F = symbols('A D E F')
+
+e1 = A*x**2 + D*x + E*y + F
+e1
+```
+
+```{python}
+solveset(e1, y)
+```
+
+
+
