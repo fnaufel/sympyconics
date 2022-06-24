@@ -495,6 +495,7 @@ m(
 ```
 
 
+This was being wrongly classified as the empty set. The bug was fixed.
 
 ```{python}
 parab = y + x**2
@@ -502,3 +503,32 @@ parab
 
 classify(parab)
 ```
+
+This should be parallel lines:
+
+```{python}
+parab = y**2 - 4*y + 1
+parab
+
+classify(parab)
+```
+
+This should be one line:
+
+```{python}
+parab = y**2 - 4*y + 4
+parab
+
+classify(parab)
+```
+
+This should be the empty set:
+
+```{python}
+parab = y**2 - 4*y + 5
+parab
+
+classify(parab)
+```
+
+`classify()` still has a bug. Fix it.
