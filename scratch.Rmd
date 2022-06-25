@@ -102,3 +102,27 @@ $$
 \end{cases}
 $$
 
+
+
+# Printing
+
+```{python}
+latex(None)
+```
+
+```{python}
+latex('parabola')
+```
+
+```{r}
+m('{{"parabola"}}', use_cat = TRUE) %>% cat()
+```
+
+```{python}
+pretty('hello there')
+```
+
+```{python}
+sstr('hello there')
+```
+

@@ -50,6 +50,102 @@ py_run_string('x, y = symbols(\'x y\')')
 ```
 
 
+# Complete the square using match
+
+```{python}
+def complsq(expr, var):
+  
+  # expr is of the form ax^2 + bx + c, and var == x
+  
+  error_msg = '''
+  Expression must be of the form ax^2 + bx + c.
+  The input was ''' + latex(expr)
+  
+  # var may be any symbol, but let's call it x here
+  x = var
+  
+  # Used to match the coefficients
+  a, b, c = [ \
+    Wild(w, exclude=[x, y]) for w in 'abc' \
+  ]
+  
+  # Match
+  m = expr.match(a*x**2 + b*x + c)
+  
+  # No match: bad expression
+  if m is None:
+    raise ValueError(error_msg)
+  
+  # Get coefficients
+  A, B, C = [w.xreplace(m) for w in [a, b, c]]
+  
+  # Expression must be of degree 2
+  if A == 0:
+    raise ValueError(error_msg)
+  
+  # Will return A (x + B/2A)^2 + (4AC - B^2)/4A
+  second = sympify(B) / (2*A)
+  third = sympify(4*A*C - B**2) / (4*A)
+  
+  return A * (var + second)**2 + third
+```
+
+
+## Test complete square
+
+```{python}
+A, B, C = symbols('A B C', real=True)
+complsq(A*x**2 + B*x + C, x)
+```
+
+```{python error=TRUE}
+complsq(x**4 + 2*x, x)
+```
+
+```{r}
+eg <- function(e) {
+  
+  cmd <- paste0('e = ', rlang::expr_text(rlang::enexpr(e)))
+  cmd <- gsub('^', '**', cmd, fixed = TRUE)
+  py_run_string(cmd)
+  
+  m('$$\\displaystyle {{e}} \\quad=\\quad {{complsq(e, x)}}$$')
+}
+```
+
+```{r}
+eg(x**2 + 2*x)
+```
+
+```{r}
+eg(x**2 + 2*x + 1)
+```
+
+```{r}
+eg(x**2 - 2*x)
+```
+
+```{r}
+eg(4*x**2 + 2*x)
+```
+
+```{r}
+eg(4*x**2 - 2*x)
+```
+
+```{r}
+eg(-4*x**2 + 2*x)
+```
+
+```{r}
+eg(-4*x**2 - 2*x)
+```
+
+```{r}
+eg(4*x**2 + 2*x + 10)
+```
+
+
 # Classify
 
 ## Algorithm from CEDERJ GA book
@@ -195,7 +291,119 @@ classify_old(parab)
 `classify()` still has a bug. Fix it.
 
 
-## Algorithm from https://en.wikipedia.org/wiki/Degenerate_conic
+## Analysis
+
+### A nondegenerate parabola with $x^2$
+
+```{python}
+A, B, C, D, E, F = symbols('A B C D E F', real=True)
+C = 0
+A*x**2 + C*y**2 + D*x + E*y + F
+```
+
+
+### A degenerate parabola (only $x$ terms):
+
+```{python}
+C = E = 0
+
+eqx = A*x**2 + D*x
+a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+eqx = complsq(eqx, x)  
+a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+m = eqx.match(a * (x + b)**2 + c)
+neweq = Eq(eqx.xreplace(m), -F)
+neweq
+```
+
+```{python}
+a, b, c = [Wild(w) for w in 'abc']
+m = neweq.lhs.match(a*b - c)
+neweq = Eq(b, (c - F)/a).xreplace(m)
+neweq
+```
+
+```{python}
+simplify(neweq.rhs)
+```
+
+Here we can analyze the numerator of the rhs to see if any $x$ satisfies this equality:
+
+$$
+\begin{cases}
+  \displaystyle
+  D^2 - 4AF < 0: &\text{empty set} \\
+  D^2 - 4AF = 0: &\text{one line: } & x = -D/2A \\
+  D^2 - 4AF > 0: &\text{two lines: } & x = \frac{-D \pm \sqrt{D^2 - 4AF}}{2A} 
+\end{cases}
+$$
+
+
+### A nondegenerate parabola with $y^2$
+
+```{python}
+A, B, C, D, E, F = symbols('A B C D E F', real=True)
+A = 0
+A*x**2 + C*y**2 + D*x + E*y + F
+```
+
+
+### A degenerate parabola (only $y$ terms):
+
+```{python}
+A = D = 0
+
+eqy = C*y**2 + E*y
+a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+eqy = complsq(eqy, y)  
+m = eqy.match(a * (y + b)**2 + c)
+neweq = Eq(eqy.xreplace(m), -F)
+neweq
+```
+
+```{python}
+a, b, c = [Wild(w) for w in 'abc']
+m = neweq.lhs.match(a*b - c)
+neweq = Eq(b, (c - F)/a).xreplace(m)
+neweq
+```
+
+```{python}
+simplify(neweq.rhs)
+```
+
+Here we can analyze the numerator of the rhs to see if any $y$ satisfies this equality:
+
+$$
+\begin{cases}
+  \displaystyle
+  E^2 - 4CF < 0: &\text{empty set} \\
+  E^2 - 4CF = 0: &\text{one line: } & y = -E/2C \\
+  E^2 - 4CF > 0: &\text{two lines: } & y = \frac{-E \pm \sqrt{E^2 - 4CF}}{2C} 
+\end{cases}
+$$
+
+
+### Combining both cases
+
+$$
+\begin{cases}
+  \displaystyle
+  D^2 + E^2 - 4F(A + C) < 0: &\text{empty set} 
+  \\
+  D^2 + E^2 - 4F(A + C) = 0: &\text{one line: } 
+  & x = -D/2A &\text{or}\quad y = -E/2C 
+  \\
+  D^2 + E^2 - 4F(A + C) > 0: &\text{two lines: } 
+  & x = \frac{-D \pm \sqrt{D^2 - 4AF}}{2A} 
+  &\text{or}\quad y = \frac{-E \pm \sqrt{E^2 - 4CF}}{2C} 
+\end{cases}
+$$
+
+
+## Algorithm 
+
+From https://en.wikipedia.org/wiki/Degenerate_conic, considering the above analysis.
 
 ```{python}
 def classify(eq):
@@ -237,11 +445,11 @@ def classify(eq):
   
   # Discriminants
   # Non-homogeneous form
-  M = Matrix([[A, B], [B, C]])
+  M = Matrix([[A, B/2], [B/2, C]])
   detM = M.det()
   
   # Homogeneous form
-  Q = Matrix([[A, B, D], [B, C, E], [D, E, F]])
+  Q = Matrix([[A, B/2, D/2], [B/2, C, E/2], [D/2, E/2, F]])
   detQ = Q.det()
   
   # Type
@@ -265,27 +473,24 @@ def classify(eq):
       degenerate_form = 'intersecting lines'
       
     elif conic_type == 'parabola':
-      if C == 0:
-        temp = D**2 - 4 * A * F
-      else: # D == 0
-        temp = 
-      # temp1 = D**2 + E**2
-      # temp2 = (A + C) * F
-      # if temp1 > temp2:
-      #   degenerate_form = 'parallel lines'
-      # elif temp1 == temp2:
-      #   degenerate_form = 'coincident lines'
-      # else:
-      #   degenerate_form = 'empty set'
-      
+      temp = D**2 + E**2 - 4 * F * (A + C)
+      if temp < 0:
+        degenerate_form = 'empty set'
+      elif temp == 0:
+        degenerate_form = 'coincident lines'
+      else: # temp > 0
+        degenerate_form = 'parallel lines'
+        
     elif detM > 0:
       degenerate_form = 'point'
+      
+  else:
+    degenerate_form = ''
       
   # Save info in dict
   retval['conic_type'] = conic_type
   retval['is_degenerate'] = is_degenerate
-  if is_degenerate:
-    retval['degenerate_form'] = degenerate_form
+  retval['degenerate_form'] = degenerate_form
   
   return retval
 ```
@@ -442,102 +647,26 @@ eq_list = [classify(eq) for eq in eqs]
 
 ```{r}
 m(
-  '{{ [ e[\'eq_general\'] for e in eq_list ] }} &',
-  '{{ [ e[\'conic_type\'] for e in eq_list ] }} \\\\',
-  before = '$$\n\\begin{array}{rl}',
-  after = '\\end{array}\n$$'
+  '{{ [ e[\'eq_general\'] for e in eq_list ] }} & ',
+  '\\text{ {{s:[ e[\'conic_type\'] for e in eq_list ] }} } & ',
+  '{{ [ e[\'is_degenerate\'] for e in eq_list ] }} & ',
+  '\\text{ {{s:[ e[\'degenerate_form\'] for e in eq_list ] }} } \\\\ \n',
+  before = '\\begin{array}{rlll} & \\text{Conic} & \\text{Degenerate?} & \\\\ \\hline \n',
+  after = '\\hline \\end{array}'
 )
 ```
 
-
-# Complete the square using match
-
-```{python}
-def complsq(expr, var):
-  
-  # e is of the form ax^2 + bx + c, and var == x
-  
-  error_msg = '''
-  Expression must be of the form ax^2 + bx + c.
-  The input was ''' + latex(expr)
-  
-  # var may be any symbol, but let's call it x here
-  x = var
-  
-  # Used to match the coefficients
-  a, b, c = [ \
-    Wild(w, exclude=[x, y]) for w in 'abc' \
-  ]
-  
-  # Match
-  m = expr.match(a*x**2 + b*x + c)
-  
-  # No match: bad expression
-  if m is None:
-    raise ValueError(error_msg)
-  
-  # Get coefficients
-  A, B, C = [w.xreplace(m) for w in [a, b, c]]
-  
-  # Expression must be of degree 2
-  if A == 0:
-    raise ValueError(error_msg)
-  
-  # Will return A (x + B/2A)^2 + (4AC - B^2)/4A
-  second = sympify(B) / (2*A)
-  third = sympify(4*A*C - B**2) / (4*A)
-  
-  return A * (var + second)**2 + third
-```
-
-
-## Test complete square
-
-```{python error=TRUE}
-complsq(x**4 + 2*x, x)
-```
+To paste into Geogebra:
 
 ```{r}
-eg <- function(e) {
-  
-  cmd <- paste0('e = ', rlang::expr_text(rlang::enexpr(e)))
-  cmd <- gsub('^', '**', cmd, fixed = TRUE)
-  py_run_string(cmd)
-  
-  m('$$\\displaystyle {{e}} \\quad=\\quad {{complsq(e, x)}}$$')
-}
-```
-
-```{r}
-eg(x**2 + 2*x)
-```
-
-```{r}
-eg(x**2 + 2*x + 1)
-```
-
-```{r}
-eg(x**2 - 2*x)
-```
-
-```{r}
-eg(4*x**2 + 2*x)
-```
-
-```{r}
-eg(4*x**2 - 2*x)
-```
-
-```{r}
-eg(-4*x**2 + 2*x)
-```
-
-```{r}
-eg(-4*x**2 - 2*x)
-```
-
-```{r}
-eg(4*x**2 + 2*x + 10)
+m(
+  '{{r: [ e[\'eq_general\'] for e in eq_list ]}} = 0',
+  before = '{',
+  after = '}',
+  sep_middle = ', ',
+  sep_blocks = ' ',
+  use_cat = TRUE
+) %>% cat()
 ```
 
 
@@ -640,7 +769,7 @@ m(
 )
 ```
 
-General:
+General, to paste into Geogebra:
 
 ```{r}
 m(
@@ -654,7 +783,7 @@ m(
   cat()
 ```
 
-Canonical:
+Canonical, to paste into Geogebra:
 
 ```{r}
 m(
