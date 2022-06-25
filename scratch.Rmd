@@ -1,16 +1,104 @@
 
-
+# A nondegenerate parabola with $x^2$
 
 ```{python}
-A, D, E, F = symbols('A D E F')
+A, B, C, D, E, F = symbols('A B C D E F', real=True)
+C = 0
+A*x**2 + C*y**2 + D*x + E*y + F
+```
 
-e1 = A*x**2 + D*x + E*y + F
-e1
+Canonic form:
+
+```{python}
+p = do_parabola(A, C, D, E, F)
+p
+```
+
+
+# A degenerate parabola (only $x$ terms):
+
+```{python}
+C = E = 0
+
+eqx = A*x**2 + D*x
+a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+eqx = complsq(eqx, x)  
+a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+m = eqx.match(a * (x + b)**2 + c)
+neweq = Eq(eqx.xreplace(m), -F)
+neweq
 ```
 
 ```{python}
-solveset(e1, y)
+a, b, c = [Wild(w) for w in 'abc']
+m = neweq.lhs.match(a*b - c)
+neweq = Eq(b, (c - F)/a).xreplace(m)
+neweq
+```
+
+```{python}
+simplify(neweq.rhs)
+```
+
+Here we can analyze the numerator of the rhs to see if any $x$ satisfies this equality:
+
+$$
+\begin{cases}
+  \displaystyle
+  D^2 - 4AF < 0: &\text{empty set} \\
+  D^2 - 4AF = 0: &\text{one line: } & x = -D/2A \\
+  D^2 - 4AF > 0: &\text{two lines: } & x = \frac{-D \pm \sqrt{D^2 - 4AF}}{2A} 
+\end{cases}
+$$
+
+# A nondegenerate parabola with $y^2$
+
+```{python}
+A, B, C, D, E, F = symbols('A B C D E F', real=True)
+A = 0
+A*x**2 + C*y**2 + D*x + E*y + F
+```
+
+Canonic form:
+
+```{python}
+p = do_parabola(A, C, D, E, F)
+p
 ```
 
 
+# A degenerate parabola (only $y$ terms):
+
+```{python}
+A = D = 0
+
+eqy = C*y**2 + E*y
+a, b, c = [Wild(w, exclude=[x, y]) for w in 'abc']
+eqy = complsq(eqy, y)  
+m = eqy.match(a * (y + b)**2 + c)
+neweq = Eq(eqy.xreplace(m), -F)
+neweq
+```
+
+```{python}
+a, b, c = [Wild(w) for w in 'abc']
+m = neweq.lhs.match(a*b - c)
+neweq = Eq(b, (c - F)/a).xreplace(m)
+neweq
+```
+
+```{python}
+simplify(neweq.rhs)
+```
+
+Here we can analyze the numerator of the rhs to see if any $y$ satisfies this equality:
+
+$$
+\begin{cases}
+  \displaystyle
+  E^2 - 4CF < 0: &\text{empty set} \\
+  E^2 - 4CF = 0: &\text{one line: } & y = -E/2C \\
+  E^2 - 4CF > 0: &\text{two lines: } & y = \frac{-E \pm \sqrt{E^2 - 4CF}}{2C} 
+\end{cases}
+$$
 

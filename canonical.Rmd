@@ -50,10 +50,14 @@ py_run_string('x, y = symbols(\'x y\')')
 ```
 
 
-# Classify using match
+# Classify
+
+## Algorithm from CEDERJ GA book
+
+This is buggy.
 
 ```{python}
-def classify(eq):
+def classify_old(eq):
   
   error_msg = '''
   Equation must be of the form Ax^2 + Cy^2 + Dx + Ey + F.
@@ -152,6 +156,177 @@ def classify(eq):
   return retval
 ```
 
+This was being wrongly classified as the empty set. The bug was fixed:
+
+```{python}
+parab = y + x**2
+parab
+
+classify_old(parab)
+```
+
+This should be parallel lines:
+
+```{python}
+parab = y**2 - 4*y + 1
+parab
+
+classify_old(parab)
+```
+
+This should be one line:
+
+```{python}
+parab = y**2 - 4*y + 4
+parab
+
+classify_old(parab)
+```
+
+This should be the empty set:
+
+```{python}
+parab = y**2 - 4*y + 5
+parab
+
+classify_old(parab)
+```
+
+`classify()` still has a bug. Fix it.
+
+
+## Algorithm from https://en.wikipedia.org/wiki/Degenerate_conic
+
+```{python}
+def classify(eq):
+  
+  error_msg = '''
+  Equation must be of the form Ax^2 + Cy^2 + Dx + Ey + F.
+  The input was ''' + latex(eq)
+  
+  # Used to match the coefficients of the equation
+  a, b, c, d, e, f = [ \
+    Wild(w, exclude=[x, y]) for w in 'abcdef' \
+  ]
+  
+  # Match
+  m = eq.match(a*x**2 + b*x*y + c*y**2 + d*x + e*y + f)
+  
+  # No match: bad equation
+  if m is None:
+    raise ValueError(error_msg)
+  
+  # Get coefficients
+  A, B, C, D, E, F = [w.xreplace(m) for w in [a, b, c, d, e, f]]
+  
+  # Must be degree 2 in at least one of the vars
+  # No rotated conics for now
+  if B != 0 or (A == 0 and C == 0):
+    raise ValueError(error_msg)
+  
+  # Collect everything in a dict
+  retval = { \
+    'eq_general': eq, \
+    'A': A, \
+    'B': B, \
+    'C': C, \
+    'D': D, \
+    'E': E, \
+    'F': F \
+  }
+  
+  # Discriminants
+  # Non-homogeneous form
+  M = Matrix([[A, B], [B, C]])
+  detM = M.det()
+  
+  # Homogeneous form
+  Q = Matrix([[A, B, D], [B, C, E], [D, E, F]])
+  detQ = Q.det()
+  
+  # Type
+  if detM > 0:
+    if A == C:
+      conic_type = 'circle'
+    else:
+      conic_type = 'ellipse'
+  elif detM == 0:
+    conic_type = 'parabola'
+  else:
+    conic_type = 'hyperbola'
+    
+  # Degenerate?
+  is_degenerate = detQ == 0
+  
+  # Degenerate form
+  if is_degenerate:
+    
+    if conic_type == 'hyperbola':
+      degenerate_form = 'intersecting lines'
+      
+    elif conic_type == 'parabola':
+      if C == 0:
+        temp = D**2 - 4 * A * F
+      else: # D == 0
+        temp = 
+      # temp1 = D**2 + E**2
+      # temp2 = (A + C) * F
+      # if temp1 > temp2:
+      #   degenerate_form = 'parallel lines'
+      # elif temp1 == temp2:
+      #   degenerate_form = 'coincident lines'
+      # else:
+      #   degenerate_form = 'empty set'
+      
+    elif detM > 0:
+      degenerate_form = 'point'
+      
+  # Save info in dict
+  retval['conic_type'] = conic_type
+  retval['is_degenerate'] = is_degenerate
+  if is_degenerate:
+    retval['degenerate_form'] = degenerate_form
+  
+  return retval
+```
+
+This should be a parabola:
+
+```{python}
+parab = y + x**2
+parab
+
+classify(parab)
+```
+
+This should be parallel lines:
+
+```{python}
+parab = y**2 - 4*y + 1
+parab
+
+classify(parab)
+```
+
+This should be one line:
+
+```{python}
+parab = y**2 - 4*y + 4
+parab
+
+classify(parab)
+```
+
+This should be the empty set:
+
+```{python}
+parab = y**2 - 4*y + 5
+parab
+
+classify(parab)
+```
+
+
 
 ## Tests for classify
 
@@ -179,7 +354,6 @@ classify(eq)
 eq = x**2 + x*y + y**2 + x + y + 1
 classify(eq)
 ```
-
 
 ```{python}
 eqs = [ \
@@ -310,8 +484,8 @@ def complsq(expr, var):
     raise ValueError(error_msg)
   
   # Will return A (x + B/2A)^2 + (4AC - B^2)/4A
-  second = Rational(B, 2*A)
-  third = Rational(4*A*C - B**2, 4*A)
+  second = sympify(B) / (2*A)
+  third = sympify(4*A*C - B**2) / (4*A)
   
   return A * (var + second)**2 + third
 ```
@@ -495,40 +669,3 @@ m(
 ```
 
 
-This was being wrongly classified as the empty set. The bug was fixed.
-
-```{python}
-parab = y + x**2
-parab
-
-classify(parab)
-```
-
-This should be parallel lines:
-
-```{python}
-parab = y**2 - 4*y + 1
-parab
-
-classify(parab)
-```
-
-This should be one line:
-
-```{python}
-parab = y**2 - 4*y + 4
-parab
-
-classify(parab)
-```
-
-This should be the empty set:
-
-```{python}
-parab = y**2 - 4*y + 5
-parab
-
-classify(parab)
-```
-
-`classify()` still has a bug. Fix it.
