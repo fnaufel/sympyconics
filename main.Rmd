@@ -47,7 +47,7 @@ sympy = import('sympy')
 py_run_string('from sympy import *')
 py_run_string('init_printing(use_latex=True)')
 py_run_string('from pprint import pp')
-py_run_string('x, y = symbols(\'x y\')')
+py_run_string('x, y = symbols(\'x y\', real=True)')
 ```
 
 
@@ -261,7 +261,7 @@ $$
 $$
 
 
-## Algorithm 
+## Algorithm: classify 
 
 From https://en.wikipedia.org/wiki/Degenerate_conic, considering the above analysis.
 
@@ -335,7 +335,8 @@ def classify(eq):
   else:
     conic_type = 'hyperbola'
     
-  # Degenerate form (but not empty set ellipse)
+  # Degenerate form (but not empty-set ellipse, which has already been
+  # identified above)
   if is_degenerate and degenerate_form == '':
     
     if conic_type == 'hyperbola':
@@ -673,7 +674,7 @@ $$
 I must test for this in the ellipse case.
 
 
-# Find canonical equation
+# Algorithm: find canonical equation
 
 ```{python}
 def find_canonical_eq(conic):
@@ -682,6 +683,9 @@ def find_canonical_eq(conic):
   
   if conic_type == 'parabola':
     do_parabola(conic)
+  elif conic_type in ['ellipse', 'circle']:
+    do_ellipse(conic)
+    
 ```
 
 
@@ -731,7 +735,7 @@ solve(eq, y)
 ```
 
 
-### Algorithm
+### Algorithm: do parabola
   
 ```{python}
 def do_parabola(conic):
@@ -759,12 +763,12 @@ def do_parabola(conic):
       m = eqx.match(a * (x + b)**2 + c)
           
       neweq = Eq(y + (F + c)/E, -a * (x + b)**2 / E).xreplace(m)
-      conic['eq_canonical'] = neweq
+      conic['eq_canonical'] = [neweq]
       
     else: # Degenerate cases (except empty set)
       
       if conic['degenerate_form'] == 'coincident lines':
-        conic['eq_canonical'] = Eq(x, -D/(2*A))
+        conic['eq_canonical'] = [Eq(x, -D/(2*A))]
       elif conic['degenerate_form'] == 'parallel lines':
         conic['eq_canonical'] = [ \
           Eq(x, (-D + sqrt(D**2 - 4*A*F))/(2*A)), \
@@ -783,12 +787,12 @@ def do_parabola(conic):
       m = eqy.match(a * (y + b)**2 + c)
       
       neweq = Eq(x + (F + c)/D, -a * (y + b)**2 / D).xreplace(m)
-      conic['eq_canonical'] = neweq
+      conic['eq_canonical'] = [neweq]
       
     else: # Degenerate cases (except empty set)
       
       if conic['degenerate_form'] == 'coincident lines':
-        conic['eq_canonical'] = Eq(y, -E/(2*C))
+        conic['eq_canonical'] = [Eq(y, -E/(2*C))]
       elif conic['degenerate_form'] == 'parallel lines':
         conic['eq_canonical'] = [ \
           Eq(y, (-E + sqrt(E**2 - 4*C*F))/(2*C)), \
@@ -857,7 +861,7 @@ Canonical, to paste into Geogebra:
 
 ```{r}
 m(
-  '{{r: [ e["eq_canonical"] for e in parabolas ] }}',
+  '{{r: [ e["eq_canonical"][0] for e in parabolas ] }}',
   sep_middle = ', ',
   before = '{',
   after = '}',
@@ -981,7 +985,7 @@ pp(parabolas)
 
 ```{r}
 m(
-  '{{ [ e["eq_canonical"] for e in parabolas ] }} \\\\',
+  '{{ [ e["eq_canonical"][0] for e in parabolas ] }} \\\\',
   before = '$$\n\\displaystyle \\begin{array}{l}',
   after = '\\end{array}\n$$'
 )
@@ -1034,5 +1038,171 @@ for conic in parabolas:
   find_canonical_eq(conic)
   
 pp(parabolas)
+```
+
+
+## Ellipse or circle
+
+### Algorithm: do ellipse
+  
+```{python}
+def do_ellipse(conic):
+  
+  A, C, D, E, F = [conic[c] for c in 'ACDEF']
+  
+  # x part
+  eqx = A*x**2 + D*x
+  
+  # y part
+  eqy = C*y**2 + E*y
+  
+  # Used to build the new equation 
+  a, b, r = [Wild(w, exclude=[x, y]) for w in 'abr']
+  qx = Wild('qx', exclude=[y])
+  qy = Wild('qy', exclude=[x])
+  
+  # Build a(x - ...)^2 + b(y - ...)^2 = r
+  neweq = complsq(eqx, x) + complsq(eqy, y) + F
+  m = neweq.match(a * qx**2 + b * qy**2 + r)
+  
+  aa = a.xreplace(m)
+  bb = b.xreplace(m)
+  rr = r.xreplace(m)
+  qqx = qx.xreplace(m)
+  qqy = qy.xreplace(m)
+  
+  # Make sure lhs will be positive
+  if aa < 0 and bb < 0:
+    aa, bb, rr = -aa, -bb, -rr
+  
+  neweq = Eq( \
+    aa * qqx**2 + bb * qqy**2, -rr, \
+    # Must keep unevaluated, or empty sets will simplify to False:
+    evaluate=False \
+  )
+  
+  # If nondegenerate ellipse, make rhs 1
+  # And push constants to denominators
+  if conic['conic_type'] == 'ellipse' and -rr > 0:
+    
+    neweq = Eq(neweq.lhs / -rr, 1)
+    
+    mm = neweq.lhs.match(qx**2 / a + qy**2 / b)
+    aa = a.xreplace(mm)
+    bb = b.xreplace(mm)
+    qqx = qx.xreplace(mm)
+    qqy = qy.xreplace(mm)
+    
+    newlhs = sympify( \
+      'qqx**2 / aa + qqy**2 / bb', \
+      locals={'qqx': qqx, 'aa': aa, 'qqy': qqy, 'bb': bb}, \
+      evaluate=False \
+    )
+    
+    neweq = Eq(newlhs, 1)
+    
+  elif conic['conic_type'] == 'circle':
+    # If circle, make aa = bb = 1
+    neweq = Eq(neweq.lhs / aa, -rr / aa)
+    
+  # Store in dict
+  conic['eq_canonical'] = [neweq]
+  
+  # If point, find coordinates and append to field in dict
+  if conic['is_degenerate'] and conic['degenerate_form'] == 'point':
+    p = (solve(qqx)[0], solve(qqy)[0])
+    conic['eq_canonical'].append(p)
+  
+```
+
+
+### Tests for do_ellipse
+
+```{python}
+eqs = [ \
+  -5*x**2-3*y**2-4*x-2*y+4, \
+  4*x**2+y**2+4*x+3*y+2, \
+  -5*x**2-y**2-2*x+5*y+2, \
+  2*x**2+3*y**2+5*x+3, \
+  x**2+5*y**2+4*x-4*y+1, \
+  5*x**2+4*y**2-x-3*y-2, \
+  4*x**2+2*y**2-x+3*y-3, \
+  x**2+5*y**2+4*x-5*y-1, \
+  -4*x**2-2*y**2-4*x+5*y+5, \
+  -4*x**2-5*y**2-2*x+3*y+1, \
+  -5*x**2-5*y**2-4*x+2*y-1, \
+  2*x**2+y**2-4*x+2, \
+  -2*x**2-4*y**2-4*y-1, \
+  -x**2-4*y**2+4*x-4*y-5, \
+  4*x**2+y**2+2*y+1, \
+  -x**2-2*y**2+2*x-1, \
+  5*x**2+y**2+4*y+4, \
+  -4*x**2-2*y**2, \
+  -5*x**2-5*y**2-2*x-4*y-1, \
+  -3*x**2-y**2-3*x+3*y-3, \
+  4*x**2+5*y**2+2*x+y+3, \
+  -5*x**2-4*y**2+5*x-y-2, \
+  -4*x**2-4*y**2+x+4*y-2, \
+  4*x**2+4*y**2-5*x-y+5, \
+  -5*x**2-3*y**2+4*x-4*y-5, \
+  -5*x**2-4*y**2+2*x-y-5, \
+  -2*x**2-2*y**2+2*x-5*y-4, \
+  5*x**2+3*y**2-x+5*y+3, \
+  5*x**2+4*y**2-4*x-5*y+4 \
+]
+```
+
+```{python}
+ellipses = [classify(c) for c in eqs]
+```
+
+```{r}
+py$ellipses %>% 
+  map_chr(~pluck(., 'conic_type'))
+```
+
+```{python}
+for e in ellipses:
+  find_canonical_eq(e)
+```
+
+General, to paste into Geogebra:
+
+```{r}
+m(
+  '{{r: [ e["eq_general"] for e in ellipses ] }}',
+  sep_middle = ', ',
+  before = '{',
+  after = '}',
+  sep_blocks = ' ',
+  use_cat = TRUE  
+) %>% 
+  gsub('==', '=', ., fixed = TRUE) %>% 
+  cat()
+```
+
+Canonical, to paste into Geogebra:
+
+```{r}
+m(
+  '{{r: [ e["eq_canonical"][0] for e in ellipses ] }}',
+  sep_middle = ', ',
+  before = '{',
+  after = '}',
+  sep_blocks = ' ',
+  use_cat = TRUE  
+) %>% 
+  gsub('==', '=', ., fixed = TRUE) %>% 
+  cat()
+```
+
+```{r}
+m(
+  '{{ [ e[\'eq_general\'] for e in ellipses ] }} & ',
+  '\\displaystyle {{ [ e[\'eq_canonical\'] for e in ellipses ] }} & ',
+  '\\text{ {{s:[ e[\'degenerate_form\'] for e in ellipses ] }} }\\\\ \n',
+  before = '\\begin{array}{rll} \n',
+  after = ' \\end{array}'
+)
 ```
 
