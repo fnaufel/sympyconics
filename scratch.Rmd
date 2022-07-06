@@ -126,3 +126,19 @@ pretty('hello there')
 sstr('hello there')
 ```
 
+# Points
+
+
+```{python}
+print(Point(1, 2))
+```
+
+```{r}
+m('{{Point(1, 2)}}')
+```
+
+```{r}
+m('{{(1, 2)}}', use_cat = TRUE)
+```
+
+
