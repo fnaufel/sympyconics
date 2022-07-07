@@ -848,3 +848,81 @@ m(
 )
 ```
 
+
+# Find center, foci, etc.
+
+## Circles
+
+```{python}
+def analyze_circle(conic):
+  
+  eq = conic['eq_canonical'][0]
+  eqlhs = eq.lhs
+  eqrhs = eq.rhs
+  
+  h, k, r = [Wild(w, exclude=[x, y]) for w in 'hkr']
+  
+  mlhs = eqlhs.match((x - h)**2 + (y - k)**2)
+  mrhs = eqrhs.match(r**2)
+  
+  conic['center'] = Point(h.xreplace(mlhs), k.xreplace(mlhs))
+  conic['radius'] = r.xreplace(mrhs)
+```
+
+```{python}
+eq = -5*x**2-5*y**2-4*x-2*y+16
+conic = find_canonical_eq(eq)
+analyze_circle(conic)
+pp(conic)
+```
+
+## Ellipses
+
+```{python}
+def analyze_ellipse(conic):
+  
+  eq = conic['eq_canonical'][0]
+  # I can ignore the 1 on the rhs
+  eqlhs = eq.lhs
+  
+  h, k, a, b = [Wild(w, exclude=[x, y]) for w in 'hkab']
+  
+  # Will args always have the x term first and the y term second?
+  # Careful to avoid evaluation
+  eqx, eqy = sympify('eqlhs.args', locals={'eqlhs': eqlhs}, evaluate=False)
+  mx = eqx.match((1 / a**2) * (x - h)**2)
+  my = eqy.match((1 / b**2) * (y - k)**2)
+  
+  aa = a.xreplace(mx)
+  bb = b.xreplace(my)
+  
+  major_axis = 'h'
+  
+  if (aa < bb):
+    aa, bb = bb, aa
+    major_axis = 'v'
+  
+  hh = h.xreplace(mx)
+  kk = k.xreplace(my)
+  
+  conic['center'] = Point(hh, kk)
+  conic['a'] = aa
+  conic['b'] = bb
+  conic['c'] = sqrt(aa**2 - bb**2)
+  conic['eccentricity'] = cc / aa
+  
+  if major_axis == 'h':
+    conic['focus'] = [ \
+      Point(hh - cc, kk), Point(hh + cc, kk) \
+    ]
+    ...
+    
+  
+```
+
+```{python}
+eq = 2*x**2+3*y**2+5*x+3
+conic = find_canonical_eq(eq)
+analyze_ellipse(conic)
+pp(conic)
+```
