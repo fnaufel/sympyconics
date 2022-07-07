@@ -41,6 +41,7 @@ def complsq(expr, var):
   
   return A * (var + second)**2 + third
 
+
 def classify(eq):
   
   error_msg = '''
@@ -140,14 +141,23 @@ def classify(eq):
   
   return retval
 
-def find_canonical_eq(conic):
+
+def find_canonical_eq(eq):
   
+  conic = classify(eq)
   conic_type = conic['conic_type']
   
   if conic_type == 'parabola':
     do_parabola(conic)
   elif conic_type in ['ellipse', 'circle']:
     do_ellipse(conic)
+  elif conic_type == 'hyperbola':
+    do_hyperbola(conic)
+  else:
+    raise ValueError('Impossible conic type!')
+  
+  return conic
+
 
 def do_parabola(conic):
   
@@ -209,6 +219,7 @@ def do_parabola(conic):
           Eq(y, (-E + sqrt(E**2 - 4*C*F))/(2*C)), \
           Eq(y, (-E - sqrt(E**2 - 4*C*F))/(2*C)) \
         ]
+
 
 def do_ellipse(conic):
   
@@ -277,3 +288,71 @@ def do_ellipse(conic):
     p = Point(solve(qqx)[0], solve(qqy)[0])
     conic['eq_canonical'].append(p)
 
+
+def do_hyperbola(conic):
+  
+  A, C, D, E, F = [conic[c] for c in 'ACDEF']
+  
+  # x part
+  eqx = A*x**2 + D*x
+  
+  # y part
+  eqy = C*y**2 + E*y
+  
+  # Used to build the new equation 
+  a, b, r = [Wild(w, exclude=[x, y]) for w in 'abr']
+  qx = Wild('qx', exclude=[y])
+  qy = Wild('qy', exclude=[x])
+  
+  # Build a(x - ...)^2 + b(y - ...)^2 = r
+  neweq = complsq(eqx, x) + complsq(eqy, y) + F
+  m = neweq.match(a * qx**2 + b * qy**2 + r)
+  
+  aa = a.xreplace(m)
+  bb = b.xreplace(m)
+  rr = r.xreplace(m)
+  qqx = qx.xreplace(m)
+  qqy = qy.xreplace(m)
+  
+  # Make sure rhs will be positive
+  if rr > 0:
+    aa, bb, rr = -aa, -bb, -rr
+  
+  neweq = Eq(aa * qqx**2 + bb * qqy**2, -rr)
+  
+  # If nondegenerate hyperbola, make rhs 1
+  # And push constants to denominators
+  if not conic['is_degenerate']:
+    
+    neweq = Eq(neweq.lhs / -rr, 1)
+    
+    mm = neweq.lhs.match(qx**2 / a + qy**2 / b)
+    aa = a.xreplace(mm)
+    bb = b.xreplace(mm)
+    qqx = qx.xreplace(mm)
+    qqy = qy.xreplace(mm)
+    
+    newlhs = sympify( \
+      'qqx**2 / aa + qqy**2 / bb', \
+      locals={'qqx': qqx, 'aa': aa, 'qqy': qqy, 'bb': bb}, \
+      evaluate=False \
+    )
+    
+    neweq = Eq(newlhs, 1)
+    
+    # Store in dict
+    conic['eq_canonical'] = [neweq]
+    
+  else:
+    
+    # If degenerate, compute intersecting lines
+    if aa < 0:
+      l1 = sqrt(bb) * qqy - sqrt(-aa) * qqx
+      l2 = sqrt(bb) * qqy + sqrt(-aa) * qqx
+    else:
+      l1 = sqrt(aa) * qqx - sqrt(-bb) * qqy
+      l2 = sqrt(aa) * qqx + sqrt(-bb) * qqy
+    
+    conic['eq_canonical'] = [ \
+      simplify(Eq(l1, 0)), simplify(Eq(l2, 0)) \
+    ]

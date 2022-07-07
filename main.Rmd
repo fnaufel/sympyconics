@@ -435,11 +435,7 @@ parabolas = [ \
 ```
 
 ```{python}
-parabolas = [classify(eq) for eq in parabolas]
-
-for conic in parabolas:
-  find_canonical_eq(conic)
-  
+parabolas = [find_canonical_eq(eq) for eq in parabolas]
 pp(parabolas)
 ```
 
@@ -508,11 +504,7 @@ parabolas = [ \
 ```
 
 ```{python}
-parabolas = [classify(eq) for eq in parabolas]
-
-for conic in parabolas:
-  find_canonical_eq(conic)
-  
+parabolas = [find_canonical_eq(eq) for eq in parabolas]
 pp(parabolas)
 ```
 
@@ -584,11 +576,7 @@ parabolas = [ \
 ```
 
 ```{python}
-parabolas = [classify(eq) for eq in parabolas]
-
-for conic in parabolas:
-  find_canonical_eq(conic)
-  
+parabolas = [find_canonical_eq(eq) for eq in parabolas]
 pp(parabolas)
 ```
 
@@ -641,11 +629,7 @@ parabolas = [ \
 ```
 
 ```{python}
-parabolas = [classify(eq) for eq in parabolas]
-
-for conic in parabolas:
-  find_canonical_eq(conic)
-  
+parabolas = [find_canonical_eq(eq) for eq in parabolas]
 pp(parabolas)
 ```
 
@@ -701,9 +685,9 @@ I must test for this in the ellipse case.
 
 ```{python}
 eqs = [ \
-  -5*x**2-3*y**2-4*x-2*y+4, \
-  4*x**2+y**2+4*x+3*y+2, \
-  -5*x**2-y**2-2*x+5*y+2, \
+  -5*x**2-5*y**2-4*x-2*y+4, \
+  4*x**2+4*y**2+4*x+3*y+2, \
+  -5*x**2-5*y**2-2*x+5*y+2, \
   2*x**2+3*y**2+5*x+3, \
   x**2+5*y**2+4*x-4*y+1, \
   5*x**2+4*y**2-x-3*y-2, \
@@ -734,7 +718,7 @@ eqs = [ \
 ```
 
 ```{python}
-ellipses = [classify(c) for c in eqs]
+ellipses = [find_canonical_eq(c) for c in eqs]
 form_list = [ \
   c['degenerate_form'] if c['is_degenerate'] else '' for c in ellipses \
 ]
@@ -743,11 +727,6 @@ form_list = [ \
 ```{r}
 py$ellipses %>% 
   map_chr(~pluck(., 'conic_type'))
-```
-
-```{python}
-for e in ellipses:
-  find_canonical_eq(e)
 ```
 
 General, to paste into Geogebra:
@@ -784,6 +763,85 @@ m(
 m(
   '{{ [ e[\'eq_general\'] for e in ellipses ] }} & ',
   '\\displaystyle {{ [ e[\'eq_canonical\'] for e in ellipses ] }} & ',
+  '\\text{ {{s: form_list }} }\\\\ \n',
+  before = '\\begin{array}{rll} \n',
+  after = ' \\end{array}'
+)
+```
+
+
+## Hyperbola
+
+### Tests
+
+```{python}
+eqs = [ \
+  2*x**2-2*y**2-4*x-4*y-2, \
+  -3*x**2+y**2-4*x+5*y-3, \
+  x**2-2*y**2-4*x+y+2, \
+  -3*x**2+4*y**2+1, \
+  -4*x**2+3*y**2+2*x+1, \
+  -5*x**2+y**2+2*x-4*y+4, \
+  2*x**2-5*y**2-5*x+y-2, \
+  -3*x**2+y**2+4*x-4*y-1, \
+  x**2-y**2-x+2*y-2, \
+  3*x**2-y**2+x-3*y-5, \
+  -x**2+3*y**2+4*x-4, \
+  5*x**2-5*y**2+4*x-4*y, \
+  -4*x**2+y**2+4*x-1, \
+  x**2-4*y**2-2*x+1, \
+  -x**2+y**2+x+3*y+2, \
+  -x**2+4*y**2+3*x+2*y-2, \
+  -3*x**2+3*y**2+5*x+y-2, \
+  4*x**2-5*y**2+2*x-5*y-1, \
+  -x**2+5*y**2-3*x-5*y-1, \
+  4*x**2-4*y**2+4*y-1, \
+]
+```
+
+```{python}
+hyps = [find_canonical_eq(c) for c in eqs]
+form_list = [ \
+  c['degenerate_form'] if c['is_degenerate'] else '' for c in hyps \
+]
+```
+
+General, to paste into Geogebra:
+
+```{r}
+m(
+  '{{r: [ e["eq_general"] for e in hyps ] }}',
+  sep_middle = ', ',
+  before = '{',
+  after = '}',
+  sep_blocks = ' ',
+  use_cat = TRUE  
+) %>% 
+  gsub('==', '=', ., fixed = TRUE) %>% 
+  cat()
+```
+
+Canonical, to paste into Geogebra:
+
+First eq:
+
+```{r}
+m(
+  '{{r: [ e["eq_canonical"][0] for e in hyps ] }}',
+  sep_middle = ', ',
+  before = '{',
+  after = '}',
+  sep_blocks = ' ',
+  use_cat = TRUE  
+) %>% 
+  gsub('==', '=', ., fixed = TRUE) %>% 
+  cat()
+```
+
+```{r}
+m(
+  '{{ [ e[\'eq_general\'] for e in hyps ] }} & ',
+  '\\displaystyle {{ [ e[\'eq_canonical\'] for e in hyps ] }} & ',
   '\\text{ {{s: form_list }} }\\\\ \n',
   before = '\\begin{array}{rll} \n',
   after = ' \\end{array}'
